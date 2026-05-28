@@ -1,0 +1,13 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.db
+chroma_data/
+venv/
+.git/
+.gitignore
+error_debug.txt
+*.pdf
+*.docx
+logs/

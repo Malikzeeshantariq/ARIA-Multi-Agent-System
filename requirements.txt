@@ -1,0 +1,48 @@
+# ================================================
+# Multi-Agent AI Research System
+# Requirements — Latest Compatible Versions 2025
+# ================================================
+
+# ── AI Agents ──────────────────────────────────
+crewai==1.14.5
+crewai-tools==1.14.5        # must match crewai version
+
+# ── LangChain (used internally by crewai) ──────
+langchain==1.3.1
+langchain-openai==1.2.1
+langchain-community==0.4.1
+
+# ── OpenAI SDK ─────────────────────────────────
+openai==2.37.0
+
+# ── Web Framework ──────────────────────────────
+fastapi==0.136.1
+uvicorn==0.47.0
+
+# ── Frontend ───────────────────────────────────
+streamlit==1.57.0
+
+# ── Utilities ──────────────────────────────────
+python-dotenv==1.2.2
+requests==2.34.2
+pydantic>=2.11.9,<2.13
+pydantic[email]>=2.11.9,<2.13   # EmailStr validation
+
+# ── Auth & Database ─────────────────────────────
+python-jose[cryptography]==3.3.0 # JWT tokens
+passlib[bcrypt]==1.7.4           # password hashing
+sqlalchemy==2.0.36               # ORM
+psycopg2-binary==2.9.10          # PostgreSQL driver
+python-multipart==0.0.17         # OAuth2PasswordRequestForm needs this
+
+# ── Document Export ────────────────────────────
+fpdf2==2.8.7
+python-docx==1.2.0
+Pillow==12.2.0
+
+# ── Web Search ─────────────────────────────────
+# ✅ No longer needed — OpenAI Responses API has built-in web search
+# google-search-results==2.4.2  ← removed (was for Serper)
+
+# ── Vector Database (Memory) ───────────────────
+chromadb==0.6.3                 # persistent local vector DB for memory features
