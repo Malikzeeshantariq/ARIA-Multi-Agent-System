@@ -20,11 +20,21 @@ DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 _is_sqlite = DATABASE_URL.startswith("sqlite")
 
+# Supabase-specific: connect_timeout prevents silent hangs.
+# Use port 6543 (Session pooler) in DATABASE_URL for SQLAlchemy ORM —
+# Transaction pooler (port 5432) does NOT support prepared statements.
+_pg_connect_args = {
+    "connect_timeout": 10,      # fail fast if DB unreachable
+    "options": "-c statement_timeout=30000",  # 30s max per query
+}
+
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if _is_sqlite else {},
+    connect_args={"check_same_thread": False} if _is_sqlite else _pg_connect_args,
     pool_pre_ping=not _is_sqlite,
-    **({} if _is_sqlite else {"pool_size": 5, "max_overflow": 10}),
+    pool_timeout=15,            # wait max 15s for a connection from pool
+    pool_recycle=300,           # recycle idle connections every 5 min
+    **({} if _is_sqlite else {"pool_size": 3, "max_overflow": 5}),
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

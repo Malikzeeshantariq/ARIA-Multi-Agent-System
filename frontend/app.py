@@ -977,16 +977,22 @@ with tab_history:
         hist_resp = requests.get(
             f"{API_URL}/history",
             headers=_auth_headers(),
-            timeout=10,
+            timeout=30,          # increased: first DB connection can be slow
         )
     except requests.exceptions.ConnectionError:
-        st.error("Cannot reach API.")
+        st.error("Cannot reach API — make sure `uvicorn api.main:app` is running.")
+        hist_resp = None
+    except requests.exceptions.ReadTimeout:
+        st.warning("History request timed out. Check your DATABASE_URL in .env — "
+                   "Supabase needs port **6543** (Session pooler), not 5432.")
         hist_resp = None
 
     if hist_resp is not None and hist_resp.status_code == 401:
         st.warning("Session expired. Please sign in again.")
         st.session_state.pop("token", None)
         st.rerun()
+    elif hist_resp is not None and hist_resp.status_code == 503:
+        st.warning("Database unavailable. Check DATABASE_URL in .env")
     elif hist_resp is not None and hist_resp.status_code == 200:
         hist_posts = hist_resp.json()
         if not hist_posts:

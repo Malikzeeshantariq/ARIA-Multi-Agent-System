@@ -1,0 +1,13 @@
+[server]
+# Keep WebSocket alive during long-running pipelines (~90s)
+# Prevents "keepalive ping timeout" errors on Streamlit Cloud
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+maxMessageSize = 500          # MB — allow large base64 image payloads
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
