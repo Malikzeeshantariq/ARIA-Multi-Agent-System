@@ -707,49 +707,63 @@ with tab_research:
                 "Upload .txt, .md, or .pdf file",
                 type=["txt", "md", "pdf"],
                 label_visibility="collapsed",
+                key="doc_file_uploader",
             )
+            # Cache extracted text in session state so it survives button-click reruns
             if uploaded_file:
-                # Extract text based on file type
-                if uploaded_file.name.lower().endswith(".pdf"):
-                    try:
-                        from pypdf import PdfReader
-                        import io
-                        pdf_bytes = uploaded_file.read()
-                        reader = PdfReader(io.BytesIO(pdf_bytes))
-                        pages_text = []
-                        for page in reader.pages:
-                            extracted = page.extract_text()
-                            if extracted:
-                                pages_text.append(extracted)
-                        doc_text = "\n\n".join(pages_text)
-                        if not doc_text.strip():
-                            st.warning("Could not extract text from this PDF (it may be a scanned image). Try a text-based PDF.")
-                            doc_text = None
-                        else:
-                            st.caption(f"✓ Extracted {len(reader.pages)} pages · {len(doc_text.split())} words")
-                    except Exception as pdf_err:
-                        st.error(f"PDF read error: {pdf_err}")
-                        doc_text = None
-                else:
-                    doc_text = uploaded_file.read().decode("utf-8", errors="replace")
-
-                if doc_text and st.button(f"Add '{uploaded_file.name}' to base", width='stretch'):
-                    with st.spinner("Adding to document base…"):
-                        r = requests.post(f"{API_URL}/memory/documents", json={
-                            "text": doc_text,
-                            "source": uploaded_file.name,
-                        }, timeout=30)
-                    if r.status_code == 200:
-                        d = r.json()
-                        st.success(f"✓ Added {d['chunks_created']} chunks from '{d['source']}'")
+                cache_key = f"_doc_text_{uploaded_file.name}_{uploaded_file.size}"
+                if cache_key not in st.session_state:
+                    if uploaded_file.name.lower().endswith(".pdf"):
+                        try:
+                            from pypdf import PdfReader
+                            import io
+                            pdf_bytes = uploaded_file.read()
+                            reader = PdfReader(io.BytesIO(pdf_bytes))
+                            pages_text = []
+                            for page in reader.pages:
+                                extracted = page.extract_text()
+                                if extracted:
+                                    pages_text.append(extracted)
+                            extracted_text = "\n\n".join(pages_text)
+                            if not extracted_text.strip():
+                                st.session_state[cache_key] = None
+                                st.warning("Could not extract text from this PDF — it may be a scanned image. Try a text-based PDF.")
+                            else:
+                                st.session_state[cache_key] = extracted_text
+                        except Exception as pdf_err:
+                            st.session_state[cache_key] = None
+                            st.error(f"PDF read error: {pdf_err}")
                     else:
-                        st.error(f"Failed: {r.text}")
+                        st.session_state[cache_key] = uploaded_file.read().decode("utf-8", errors="replace")
+
+                doc_text = st.session_state.get(cache_key)
+                if doc_text:
+                    if uploaded_file.name.lower().endswith(".pdf"):
+                        st.caption(f"✓ Extracted · {len(doc_text.split())} words")
+                    if st.button(f"Add '{uploaded_file.name}' to base", width='stretch', key="btn_add_file_doc"):
+                        with st.spinner("Adding to document base…"):
+                            r = requests.post(f"{API_URL}/memory/documents", json={
+                                "text": doc_text,
+                                "source": uploaded_file.name,
+                            }, timeout=30)
+                        if r.status_code == 200:
+                            d = r.json()
+                            st.success(f"✓ Added {d['chunks_created']} chunks from '{d['source']}'")
+                            # Clear cache after successful upload
+                            st.session_state.pop(cache_key, None)
+                        else:
+                            st.error(f"Failed: {r.text}")
+            else:
+                # Clean up any stale doc_text cache keys when file is removed
+                for k in list(st.session_state.keys()):
+                    if k.startswith("_doc_text_"):
+                        st.session_state.pop(k, None)
 
         with doc_col2:
             paste_text = st.text_area("Or paste text directly", height=100, label_visibility="collapsed",
                                       placeholder="Paste any article, report, or notes here…")
             paste_label = st.text_input("Source label", value="pasted_content", label_visibility="collapsed")
-            if st.button("Add pasted text to base", width='stretch'):
+            if st.button("Add pasted text to base", width='stretch', key="btn_add_paste_doc"):
                 if paste_text and len(paste_text.strip()) >= 50:
                     with st.spinner("Adding to document base…"):
                         r = requests.post(f"{API_URL}/memory/documents", json={
