@@ -699,18 +699,41 @@ with tab_research:
 
     # ── Document Upload Zone ───────────────────────────────────
     with st.expander("📂  Add documents to research base (optional)", expanded=False):
-        st.caption("Upload text files or paste content — agents will use this as extra context during research.")
+        st.caption("Upload .txt, .md, or .pdf files — agents will use this as extra context during research.")
         doc_col1, doc_col2 = st.columns([1, 1])
 
         with doc_col1:
             uploaded_file = st.file_uploader(
-                "Upload .txt or .md file",
-                type=["txt", "md"],
+                "Upload .txt, .md, or .pdf file",
+                type=["txt", "md", "pdf"],
                 label_visibility="collapsed",
             )
             if uploaded_file:
-                doc_text = uploaded_file.read().decode("utf-8", errors="replace")
-                if st.button(f"Add '{uploaded_file.name}' to base", width='stretch'):
+                # Extract text based on file type
+                if uploaded_file.name.lower().endswith(".pdf"):
+                    try:
+                        from pypdf import PdfReader
+                        import io
+                        pdf_bytes = uploaded_file.read()
+                        reader = PdfReader(io.BytesIO(pdf_bytes))
+                        pages_text = []
+                        for page in reader.pages:
+                            extracted = page.extract_text()
+                            if extracted:
+                                pages_text.append(extracted)
+                        doc_text = "\n\n".join(pages_text)
+                        if not doc_text.strip():
+                            st.warning("Could not extract text from this PDF (it may be a scanned image). Try a text-based PDF.")
+                            doc_text = None
+                        else:
+                            st.caption(f"✓ Extracted {len(reader.pages)} pages · {len(doc_text.split())} words")
+                    except Exception as pdf_err:
+                        st.error(f"PDF read error: {pdf_err}")
+                        doc_text = None
+                else:
+                    doc_text = uploaded_file.read().decode("utf-8", errors="replace")
+
+                if doc_text and st.button(f"Add '{uploaded_file.name}' to base", width='stretch'):
                     with st.spinner("Adding to document base…"):
                         r = requests.post(f"{API_URL}/memory/documents", json={
                             "text": doc_text,
